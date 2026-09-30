@@ -4,7 +4,7 @@
 Only the latest release receives security fixes.
 
 ## Reporting a vulnerability
-Report vulnerabilities privately through [GitHub private vulnerability reporting](https://github.com/raulkivi/osh/security/advisories/new). Do not open a public issue.
+Report vulnerabilities privately through [GitHub private vulnerability reporting](https://github.com/raulkivi/nlsh/security/advisories/new). Do not open a public issue.
 
 Include:
 - affected version or commit

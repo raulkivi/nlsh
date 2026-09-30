@@ -407,6 +407,10 @@ curl -fsSL https://ollama.ai/install.sh | sh
 ollama pull llama3
 ```
 
+## Contributing
+
+Issues and PRs are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Report security issues via [SECURITY.md](SECURITY.md).
+
 ## License
 
 [MIT](LICENSE) © 2026 [Raul Kivi](https://www.linkedin.com/in/raulkivi/)
