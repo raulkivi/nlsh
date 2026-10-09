@@ -666,7 +666,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument('query', nargs='*',
                        help='Natural language query for shell command')
     parser.add_argument('-a', '--ask', action='store_true',
-                       help='Prompt before executing (overrides config safety setting)')
+                       help='Always confirm before executing, even when config safety is false')
     parser.add_argument('--init', action='store_true',
                        help='Initialize configuration file interactively')
     parser.add_argument('--config', metavar='PATH',
@@ -864,7 +864,7 @@ def print_usage(config: dict[str, Any]) -> None:
     print("NLSH v0.2")
     print()
     print("Usage: nlsh [-a] list the current directory information")
-    print("Argument: -a: Prompt the user before running the command (only useful when safety is off)")
+    print("Argument: -a: Always confirm before running a command, even when safety is off")
     print()
     print("Current configuration:")
     print("* API              : " + str(config["api"]))
@@ -1301,7 +1301,7 @@ def _generate_and_review(
             verdicts = qa_review(client, config, shell, user_prompt, options)
         except Exception as e:
             log_warning("QA_REVIEW_FAILED: %s", e)
-            print(colored("Warning: QA safety review failed, proceeding without it.", 'yellow'))
+            print(colored("Warning: QA safety review failed; every command will need explicit confirmation.", 'yellow'))
 
     return options, availability, verdicts
 
@@ -1311,6 +1311,46 @@ def _prompt_refined_query(user_prompt: str) -> str:
     print("Refine your question (press Enter to reuse the original): ", end='')
     refined: str = input().strip()
     return refined if refined else user_prompt
+
+
+def confirmation_policy(
+    verdict: str | None, safety: bool, ask_flag: bool
+) -> tuple[bool, bool]:
+    """Decide whether to ask before executing a command, and the prompt default.
+
+    Args:
+        verdict: QA verdict for the selected command, or None when there is
+            none (review disabled or failed).
+        safety: the ``safety`` config setting.
+        ask_flag: whether -a/--ask was given.
+
+    Returns:
+        (must_prompt, default_yes). Only a PASS verdict ever defaults to
+        yes, and only PASS with safety off and no -a may skip the prompt.
+        FAIL is blocked before this is consulted; it is handled here like
+        the other non-PASS verdicts so it can never be weaker than WARN.
+    """
+    if verdict == "PASS":
+        return (safety or ask_flag, True)
+    return (True, False)
+
+
+def confirm_execution(default_yes: bool) -> bool:
+    """Ask "Execute this command?"; return True only if the user agrees.
+
+    Enter selects the default. End of input (e.g. non-interactive stdin)
+    always means no.
+    """
+    choices: str = "[Y/n]" if default_yes else "[y/N]"
+    print(f"Execute this command? {choices} ==> ", end='')
+    try:
+        answer: str = input().strip().lower()
+    except EOFError:
+        print()
+        return False
+    if answer == '':
+        return default_yes
+    return answer in ('y', 'yes')
 
 
 def _run_safety_gates_and_execute(
@@ -1325,8 +1365,9 @@ def _run_safety_gates_and_execute(
     verdicts: list[tuple[str, str]],
     user_prompt: str,
 ) -> tuple:
-    """Run the availability/FAIL/WARN/ask_flag gates for a selected command
-    and execute it if they all pass.
+    """Run the availability/FAIL/confirmation gates for a selected command
+    and execute it if they all pass (see confirmation_policy for when the
+    user is asked first).
 
     Returns ("done", True|False) once the query is fully resolved, or
     ("retry", options, availability, verdicts, user_prompt) if the command
@@ -1353,22 +1394,22 @@ def _run_safety_gates_and_execute(
         print("No action taken.")
         return ("done", True)
 
-    if verdicts and idx < len(verdicts) and verdicts[idx][0] == "WARN":
-        print(colored(f"Warning: {verdicts[idx][1]}", 'yellow'))
-        print("Proceed anyway? [Y]es [n]o ==> ", end='')
-        confirm: str = input().strip()
-        if confirm.upper() not in ('', 'Y'):
-            log_info("USER_SELECTED: Option %s | COMMAND: %s | USER_CANCELLED_AFTER_WARN",
-                        user_selection, _sanitize_for_log(selected_command))
-            print("No action taken.")
-            return ("done", True)
-    elif ask_flag:
-        # Ask for confirmation when -a flag is used
-        print("Execute this command? [Y]es [n]o ==> ", end='')
-        confirm = input().strip()
-        if confirm.upper() not in ('', 'Y'):
-            log_info("USER_SELECTED: Option %s | COMMAND: %s | USER_CANCELLED_BY_ASK_FLAG",
-                        user_selection, _sanitize_for_log(selected_command))
+    verdict: str | None = None
+    reason: str = ""
+    if idx < len(verdicts):
+        verdict, reason = verdicts[idx]
+    safety: bool = config.get("safety", True) is not False
+    must_prompt, default_yes = confirmation_policy(verdict, safety, ask_flag)
+    if must_prompt:
+        if verdict == "WARN":
+            print(colored(f"Warning: {reason}", 'yellow'))
+        elif verdict == "MISS":
+            print(colored(f"Imprecise: {reason}", 'magenta'))
+        elif verdict is None:
+            print(colored("This command has not been safety-reviewed.", 'yellow'))
+        if not confirm_execution(default_yes):
+            log_info("USER_SELECTED: Option %s | COMMAND: %s | USER_CANCELLED_AT_CONFIRMATION (verdict: %s)",
+                        user_selection, _sanitize_for_log(selected_command), verdict or "NONE")
             print("No action taken.")
             return ("done", True)
 
