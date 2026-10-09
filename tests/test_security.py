@@ -132,3 +132,33 @@ class TestMissingPosixDisplay:
     def test_false_when_display_set(self, monkeypatch):
         monkeypatch.setenv("DISPLAY", ":0")
         assert nlsh.missing_posix_display() is False
+
+
+class TestHiddenCharacterHandling:
+    """LLM output reaches the terminal and a shell; hidden characters must not
+    make the displayed command differ from the executed one."""
+
+    def test_strip_for_display_removes_ansi_control_and_bidi(self):
+        raw = "ok\x1b[31m red\x1b[0m\x07‮​ end"
+        assert nlsh.strip_for_display(raw) == "ok red end"
+
+    def test_strip_for_display_keeps_newline_and_tab(self):
+        assert nlsh.strip_for_display("a\nb\tc") == "a\nb\tc"
+
+    def test_command_with_bidi_override_is_rejected(self):
+        response = "<c1>ls ‮txt.sh</c1><e1>list</e1><c2>ls -l</c2><e2>long</e2>"
+        assert nlsh.parse_command_options(response) == [("ls -l", "long")]
+
+    def test_command_with_escape_or_carriage_return_is_rejected(self):
+        response = "<c1>echo hi\rrm -rf x</c1><e1>a</e1><c2>echo \x1b[2Jhi</c2><e2>b</e2>"
+        assert nlsh.parse_command_options(response) == []
+
+    def test_command_with_zero_width_is_rejected(self):
+        assert nlsh.parse_command_options("<c1>ls​ -l</c1><e1>x</e1>") == []
+
+    def test_explanation_is_sanitised(self):
+        response = "<c1>ls</c1><e1>list ‮files\x1b[31m</e1>"
+        assert nlsh.parse_command_options(response) == [("ls", "list files")]
+
+    def test_qa_reason_is_sanitised(self):
+        assert nlsh.parse_qa_verdicts("1|WARN|bad ‮thing\x1b[31m", 1) == {1: ("WARN", "bad thing")}

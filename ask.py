@@ -6,6 +6,7 @@ __version__ = "1.2"
 import json
 import os
 import re
+import unicodedata
 import sys
 import urllib.error
 import urllib.request
@@ -268,7 +269,7 @@ def main() -> None:
         print("Error: empty response from model.", file=sys.stderr)
         sys.exit(1)
 
-    print(_ANSI_ESCAPE.sub('', content))
+    print(''.join(ch for ch in _ANSI_ESCAPE.sub('', content) if ch in '\t\n' or unicodedata.category(ch) not in ('Cc', 'Cf')))
 
 
 if __name__ == "__main__":

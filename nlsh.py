@@ -241,6 +241,7 @@ import logging
 import re
 import shlex
 import shutil
+import unicodedata
 import urllib.error
 import urllib.request
 from ollama import Client
@@ -274,6 +275,30 @@ def _sanitize_for_log(value: str) -> str:
 _ANSI_ESCAPE: re.Pattern[str] = re.compile(
     r'(?:\x1B[@-Z\\-_]|\x1B\[[0-?]*[ -/]*[@-~])'
 )
+
+
+def _version() -> str:
+    from importlib.metadata import PackageNotFoundError, version
+    try:
+        return version("nlsh")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def _is_hidden(ch: str) -> bool:
+    """Control (except tab/newline) and format characters: ESC, CR, bidi, zero-width."""
+    if ch in '\t\n':
+        return False
+    return unicodedata.category(ch) in ('Cc', 'Cf')
+
+
+def has_hidden_chars(text: str) -> bool:
+    return any(_is_hidden(ch) for ch in text)
+
+
+def strip_for_display(text: str) -> str:
+    """Remove ANSI sequences and hidden characters from LLM-supplied text."""
+    return ''.join(ch for ch in _ANSI_ESCAPE.sub('', text) if not _is_hidden(ch))
 
 
 # Scripting languages to probe for availability
@@ -833,7 +858,7 @@ def parse_qa_verdicts(response: str, num_commands: int) -> dict[int, tuple[str, 
 
         num: str = parts[0].strip()
         verdict: str = parts[1].strip().upper()
-        reason: str = parts[2].strip() if len(parts) >= 3 else ""
+        reason: str = strip_for_display(parts[2]).strip() if len(parts) >= 3 else ""
 
         if not (num.isdigit() and 1 <= int(num) <= num_commands):
             continue
@@ -861,7 +886,7 @@ def align_verdicts(
 
 
 def print_usage(config: dict[str, Any]) -> None:
-    print("NLSH v0.2")
+    print(f"NLSH v{_version()}")
     print()
     print("Usage: nlsh [-a] list the current directory information")
     print("Argument: -a: Always confirm before running a command, even when safety is off")
@@ -923,8 +948,11 @@ def parse_command_options(response: str) -> list[tuple[str, str]]:
         if not cmd_match:
             continue
         command: str = cmd_match.group(1).strip()
+        # A command that hides characters could display differently from what runs.
+        if has_hidden_chars(command):
+            continue
         exp_match = re.search(rf'<e{n}>(.*?)</e{n}>', response, re.DOTALL)
-        explanation: str = exp_match.group(1).strip() if exp_match else ""
+        explanation: str = strip_for_display(exp_match.group(1)).strip() if exp_match else ""
         if command and command not in _PLACEHOLDER_COMMANDS:
             options.append((command, explanation))
     return options
