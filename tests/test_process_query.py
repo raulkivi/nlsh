@@ -52,7 +52,8 @@ def test_executes_selected_command_on_success(monkeypatch, config):
     monkeypatch.setattr(
         nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(0)
     )
-    monkeypatch.setattr("builtins.input", make_input(["1"]))
+    # safety is on by default: PASS still asks, and Enter means yes
+    monkeypatch.setattr("builtins.input", make_input(["1", ""]))
 
     result = nlsh.process_query(object(), config, "/bin/bash", "list files", False)
 
@@ -117,7 +118,7 @@ def test_warn_verdict_declined_by_user(monkeypatch, config):
     assert run_calls == []
 
 
-def test_warn_verdict_confirmed_with_default_yes(monkeypatch, config):
+def test_warn_verdict_confirmed_with_explicit_yes(monkeypatch, config):
     options = [("mv a b", "Move file")]
     monkeypatch.setattr(nlsh, "collect_unique_options", lambda *a, **k: options)
     monkeypatch.setattr(nlsh, "check_all_commands_availability", lambda *a, **k: [True])
@@ -126,7 +127,7 @@ def test_warn_verdict_confirmed_with_default_yes(monkeypatch, config):
     monkeypatch.setattr(
         nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(0)
     )
-    monkeypatch.setattr("builtins.input", make_input(["1", ""]))
+    monkeypatch.setattr("builtins.input", make_input(["1", "y"]))
 
     nlsh.process_query(object(), config, "/bin/bash", "move file", False)
 
@@ -232,7 +233,8 @@ def test_qa_review_skipped_when_disabled_in_config(monkeypatch, config):
     monkeypatch.setattr(
         nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(0)
     )
-    monkeypatch.setattr("builtins.input", make_input(["1"]))
+    # an unreviewed command needs an explicit yes
+    monkeypatch.setattr("builtins.input", make_input(["1", "y"]))
 
     nlsh.process_query(object(), config, "/bin/bash", "list", False)
 
@@ -240,8 +242,8 @@ def test_qa_review_skipped_when_disabled_in_config(monkeypatch, config):
     assert run_calls == [["/bin/bash", "-c", "ls"]]
 
 
-def test_qa_review_failure_is_caught_and_execution_proceeds(monkeypatch, capsys, config):
-    """qa_review failing fails open: the command still reaches execution."""
+def test_qa_review_failure_is_caught_and_execution_needs_explicit_yes(monkeypatch, capsys, config):
+    """qa_review failing is caught; the command runs only after an explicit yes."""
     options = [("ls", "List")]
     monkeypatch.setattr(nlsh, "collect_unique_options", lambda *a, **k: options)
     monkeypatch.setattr(nlsh, "check_all_commands_availability", lambda *a, **k: [True])
@@ -254,7 +256,7 @@ def test_qa_review_failure_is_caught_and_execution_proceeds(monkeypatch, capsys,
     monkeypatch.setattr(
         nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(0)
     )
-    monkeypatch.setattr("builtins.input", make_input(["1"]))
+    monkeypatch.setattr("builtins.input", make_input(["1", "y"]))
 
     nlsh.process_query(object(), config, "/bin/bash", "list", False)
 
@@ -271,8 +273,9 @@ def test_all_miss_or_fail_offers_retry_and_falls_back_to_original_when_declined(
     monkeypatch.setattr(
         nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(0)
     )
-    # 'n' declines the retry offer; '1' then selects from the ORIGINAL options.
-    monkeypatch.setattr("builtins.input", make_input(["n", "1"]))
+    # 'n' declines the retry offer; '1' then selects from the ORIGINAL options;
+    # a MISS verdict needs an explicit 'y' to run.
+    monkeypatch.setattr("builtins.input", make_input(["n", "1", "y"]))
 
     nlsh.process_query(object(), config, "/bin/bash", "list", False)
 
@@ -285,7 +288,7 @@ def test_command_failure_offers_retry_and_user_quits(monkeypatch, capsys, config
     monkeypatch.setattr(nlsh, "check_all_commands_availability", lambda *a, **k: [True])
     monkeypatch.setattr(nlsh, "qa_review", lambda *a, **k: [("PASS", "")])
     monkeypatch.setattr(nlsh.subprocess, "run", lambda cmd, **k: FakeCompletedProcess(1))
-    monkeypatch.setattr("builtins.input", make_input(["1", "q"]))
+    monkeypatch.setattr("builtins.input", make_input(["1", "", "q"]))
 
     result = nlsh.process_query(object(), config, "/bin/bash", "list", False)
 
@@ -313,8 +316,8 @@ def test_command_failure_retry_regenerates_and_executes_new_selection(monkeypatc
         return FakeCompletedProcess(1 if cmd[-1] == "false" else 0)
 
     monkeypatch.setattr(nlsh.subprocess, "run", fake_run)
-    # select 'false' (fails) -> retry -> reuse prompt -> select 'true' (succeeds)
-    monkeypatch.setattr("builtins.input", make_input(["1", "r", "", "1"]))
+    # select 'false', confirm (fails) -> retry -> reuse prompt -> select 'true', confirm
+    monkeypatch.setattr("builtins.input", make_input(["1", "", "r", "", "1", ""]))
 
     nlsh.process_query(object(), config, "/bin/bash", "list", False)
 
@@ -347,8 +350,8 @@ def test_command_failure_retry_still_blocks_a_fail_verdict_on_the_new_options(mo
 
     run_calls = []
     monkeypatch.setattr(nlsh.subprocess, "run", lambda cmd, **k: run_calls.append(cmd) or FakeCompletedProcess(1))
-    # select 'false' (fails) -> retry -> reuse prompt -> select the new (now FAIL-rated) option
-    monkeypatch.setattr("builtins.input", make_input(["1", "r", "", "1"]))
+    # select 'false', confirm (fails) -> retry -> reuse prompt -> select the new (now FAIL-rated) option
+    monkeypatch.setattr("builtins.input", make_input(["1", "", "r", "", "1"]))
 
     nlsh.process_query(object(), config, "/bin/bash", "list", False)
 

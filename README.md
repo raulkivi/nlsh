@@ -57,6 +57,8 @@ The installer will:
 5. Let you choose a backend — Ollama (lists installed models) or llama.cpp `llama-server` (lists models from a running server, or lets you type the model name)
 6. Save configuration to `~/.config/nlsh/config.json`
 
+If it finds an install from the old `osh` name (`~/osh` or `~/.local/osh` containing `osh.py`), it asks before removing it (default: no). A directory with that name but no `osh.py` is left alone, and nothing is removed when the installer is not run from a terminal.
+
 After installation, ensure `~/.local/bin` is in your PATH:
 
 ```bash
@@ -80,7 +82,7 @@ nlsh --init
 ```bash
 nlsh                         # Enter interactive shell mode (REPL)
 nlsh <natural language query>
-nlsh -a <query>              # Always prompt before executing
+nlsh -a <query>              # Always confirm before executing (even with "safety": false)
 nlsh -m <model> <query>      # Use a specific model (overrides config)
 nlsh -m - <query>            # Pick model interactively from Ollama
 nlsh --config PATH <query>   # Use alternate config file
@@ -174,10 +176,25 @@ Each command is tagged by the safety review:
 
 | Verdict | Meaning |
 |---------|---------|
-| **PASS** (green) | Correct, safe, matches intent |
-| **WARN** (yellow) | Works but has a concern — confirmation required |
-| **MISS** (magenta) | Safe but doesn't precisely answer the question |
+| **PASS** (green) | Correct, safe, matches intent — confirmation defaults to yes |
+| **WARN** (yellow) | Works but has a concern — confirmation required, defaults to no |
+| **MISS** (magenta) | Safe but doesn't precisely answer the question — confirmation required, defaults to no |
 | **FAIL** (red) | Dangerous, incorrect, or insecure — execution blocked |
+
+Verdicts are matched to commands by the number the reviewer gives each line, not by line order. A command the review returns no verdict for is treated as **WARN**; if the reviewer gives one command several verdicts, the most severe one counts.
+
+### Confirmation Before Executing
+
+After you pick a command, nlsh asks `Execute this command?` before running it:
+
+| Situation | `"safety": true` (default) | `"safety": false` |
+|-----------|----------------------------|-------------------|
+| PASS | Asks, Enter = yes `[Y/n]` | Runs without asking (asks `[Y/n]` with `-a`) |
+| WARN, MISS, or no verdict for this command | Asks, Enter = no `[y/N]` | Asks, Enter = no `[y/N]` |
+| QA review disabled (`"qa_review": false`) or failed | Asks, Enter = no `[y/N]` | Asks, Enter = no `[y/N]` |
+| FAIL | Blocked | Blocked |
+
+`-a`/`--ask` makes nlsh ask for every command even when `safety` is off. If input ends (for example, stdin is not a terminal), the answer is no.
 
 ### Ask
 
@@ -228,7 +245,7 @@ nlsh --init
 | `model` | Model name (Ollama model name, or the model llama-server has loaded) | `gpt-oss:latest` |
 | `temperature` | Randomness (0.0–2.0) | `0.3` |
 | `max_tokens` | Max response tokens (increase for thinking models) | `2400` |
-| `safety` | Stored/shown by `--init` and the usage screen; not currently wired to any prompt-before-execute logic (that's controlled by `-a`/`--ask` and WARN verdicts) | `true` |
+| `safety` | Ask before executing every command. When `false`, only PASS commands run without asking; anything else still asks (see [Confirmation Before Executing](#confirmation-before-executing)) | `true` |
 | `qa_review` | Enable second-pass safety review | `true` |
 | `suggested_command_color` | Terminal color for displayed commands | `blue` |
 | `python_venv` | `null`, `"pyenv:name"`, or `"venv:/path"` | `null` |
@@ -340,7 +357,7 @@ User query
   → Check command availability (shutil.which + shell builtins)
   → QA safety review (single LLM call evaluating all collected commands)
   → Display options with verdicts
-  → User selects → Execute
+  → User selects → Confirm (per verdict and `safety`) → Execute
 ```
 
 ### Key Components

@@ -61,7 +61,10 @@ def run_case(client: RecordingClient, config: dict, case: dict) -> dict:
             "latency_s": time.monotonic() - start,
         }
     latency = time.monotonic() - start
-    actual = verdicts[0][0] if verdicts else None
+    # qa_review() reports an unrated command as WARN (fail-safe at runtime);
+    # for scoring, only count a verdict the model actually returned.
+    parsed = nlsh.parse_qa_verdicts(client.last_response or "", len(options))
+    actual = verdicts[0][0] if 1 in parsed else None
     return {
         "actual": actual,
         "raw_response": client.last_response,
