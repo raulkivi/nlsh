@@ -7,6 +7,50 @@ APP_DIR="$HOME/.local/nlsh"
 BIN_DIR="$HOME/.local/bin"
 CONFIG_DIR="$HOME/.config/nlsh"
 
+# Ask a yes/no question that defaults to No. Succeeds only on an explicit
+# "y"/"yes" typed at a terminal; non-interactive input always means No.
+confirm_default_no() {
+  local reply
+  [ -t 0 ] || return 1
+  read -rp "$1 [y/N]: " reply || return 1
+  [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+# Remove installs left by the old 'osh' package (renamed to nlsh), which
+# put osh.py in ~/osh or ~/.local/osh and linked it as ~/.local/bin/osh.
+# A directory with one of those names only counts as a legacy install if
+# it contains osh.py, and is removed only after the user confirms.
+remove_legacy_osh_installs() {
+  local dir
+  for dir in "$HOME/osh" "$HOME/.local/osh"; do
+    [ -d "$dir" ] || continue
+    if [ ! -f "$dir/osh.py" ]; then
+      echo "  Leaving $dir alone: it does not look like an old osh installation (no osh.py)."
+      continue
+    fi
+    if [ ! -t 0 ]; then
+      echo "  Found old osh installation at $dir; not removing it in a non-interactive run."
+      echo "  Remove it yourself if you no longer need it."
+      continue
+    fi
+    if confirm_default_no "  Found old osh installation at $dir. Remove it?"; then
+      rm -rf -- "$dir"
+    else
+      echo "  Keeping $dir."
+    fi
+  done
+
+  # Only remove the old launcher if it is our symlink to osh.py, not an
+  # unrelated program that happens to be called osh.
+  local link="$BIN_DIR/osh"
+  if [ -L "$link" ] && [[ "$(readlink "$link")" == */osh.py ]]; then
+    rm -f -- "$link"
+  fi
+}
+
+# The installer itself. Kept unindented to keep history readable; it only
+# runs when this file is executed, not when it is sourced (e.g. by tests).
+main() {
 echo "Hello. Installing NLSH..."
 
 # Check if ~/.local/bin is in PATH
@@ -33,22 +77,14 @@ if [ -d "$APP_DIR" ]; then
     exit 1
   fi
 fi
-# Also clean up legacy installation if it exists
-if [ -d "$HOME/osh" ]; then
-  echo "  Found old installation at ~/osh, removing..."
-  rm -rf "$HOME/osh"
-fi
+# Clean up installs from before the osh -> nlsh rename
+remove_legacy_osh_installs
 
-# Migrate from the old 'osh' package name (renamed to nlsh)
-if [ -d "$HOME/.local/osh" ]; then
-  echo "  Found old osh installation at ~/.local/osh, removing..."
-  rm -rf "$HOME/.local/osh"
-fi
+# Migrate config from the old 'osh' package name (renamed to nlsh)
 if [ -d "$HOME/.config/osh" ] && [ ! -e "$CONFIG_DIR" ]; then
   echo "  Migrating config from ~/.config/osh to $CONFIG_DIR..."
   cp -r "$HOME/.config/osh" "$CONFIG_DIR"
 fi
-rm -f "$BIN_DIR/osh"
 
 echo "- Creating directories..."
 mkdir -p "$APP_DIR"
@@ -350,3 +386,8 @@ echo "Usage:"
 echo "  nlsh what is my username"
 echo "  echo 'your question' | ask"
 echo ""
+}
+
+if [[ "${BASH_SOURCE[0]:-$0}" == "$0" ]]; then
+  main "$@"
+fi

@@ -57,6 +57,8 @@ The installer will:
 5. Let you choose a backend — Ollama (lists installed models) or llama.cpp `llama-server` (lists models from a running server, or lets you type the model name)
 6. Save configuration to `~/.config/nlsh/config.json`
 
+If it finds an install from the old `osh` name (`~/osh` or `~/.local/osh` containing `osh.py`), it asks before removing it (default: no). A directory with that name but no `osh.py` is left alone, and nothing is removed when the installer is not run from a terminal.
+
 After installation, ensure `~/.local/bin` is in your PATH:
 
 ```bash
