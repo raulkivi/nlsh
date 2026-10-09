@@ -780,7 +780,11 @@ def qa_review(
     question: str,
     options: list[tuple[str, str]],
 ) -> list[tuple[str, str]]:
-    """Run QA safety review on proposed commands. Returns list of (verdict, reason) tuples."""
+    """Run QA safety review on proposed commands.
+
+    Returns exactly one (verdict, reason) tuple per option, in option order;
+    options the reviewer did not rate come back as WARN (see align_verdicts).
+    """
     commands_text: str = "\n".join(
         f"<c{i}>{cmd}</c{i}>\n<e{i}>{exp}</e{i}>" for i, (cmd, exp) in enumerate(options, 1)
     )
@@ -798,12 +802,26 @@ def qa_review(
         max_tokens=config.get('max_tokens'))
 
     log_info("QA_RESPONSE: %s", response.replace(chr(10), ' | '))
-    return parse_qa_verdicts(response)
+    return align_verdicts(parse_qa_verdicts(response, len(options)), len(options))
 
 
-def parse_qa_verdicts(response: str) -> list[tuple[str, str]]:
-    """Parse QA response into list of (verdict, reason) tuples."""
-    verdicts: list[tuple[str, str]] = []
+# Severity order used to resolve duplicate verdicts for the same command:
+# the most severe one wins, so a reviewer can never "downgrade" a FAIL.
+_VERDICT_SEVERITY: dict[str, int] = {"PASS": 0, "MISS": 1, "WARN": 2, "FAIL": 3}
+
+# Reason attached to a command the QA reviewer returned no verdict for.
+NO_VERDICT_REASON: str = "No safety verdict was returned for this command"
+
+
+def parse_qa_verdicts(response: str, num_commands: int) -> dict[int, tuple[str, str]]:
+    """Parse a QA response into {command number: (verdict, reason)}.
+
+    Each line has the form ``N|VERDICT|reason``; N is the 1-based number of
+    the command it refers to. Lines whose N is outside 1..num_commands, or
+    whose verdict is unknown, are ignored. When a command gets more than
+    one verdict, the most severe one is kept.
+    """
+    verdicts: dict[int, tuple[str, str]] = {}
     lines: list[str] = response.strip().split('\n')
     for line in lines:
         line = line.strip()
@@ -812,14 +830,34 @@ def parse_qa_verdicts(response: str) -> list[tuple[str, str]]:
         parts: list[str] = line.split('|', 2)
         if len(parts) < 2:
             continue
-            
+
         num: str = parts[0].strip()
         verdict: str = parts[1].strip().upper()
         reason: str = parts[2].strip() if len(parts) >= 3 else ""
-        
-        if num.isdigit() and 1 <= int(num) <= 6 and verdict in ('PASS', 'WARN', 'MISS', 'FAIL'):
-            verdicts.append((verdict, reason))
+
+        if not (num.isdigit() and 1 <= int(num) <= num_commands):
+            continue
+        if verdict not in _VERDICT_SEVERITY:
+            continue
+        key: int = int(num)
+        existing: tuple[str, str] | None = verdicts.get(key)
+        if existing is None or _VERDICT_SEVERITY[verdict] > _VERDICT_SEVERITY[existing[0]]:
+            verdicts[key] = (verdict, reason)
     return verdicts
+
+
+def align_verdicts(
+    parsed: dict[int, tuple[str, str]], num_commands: int
+) -> list[tuple[str, str]]:
+    """Return one (verdict, reason) per command, in command order.
+
+    A command the reviewer gave no verdict for is treated as WARN, so it is
+    never executed as if it had been reviewed and passed.
+    """
+    return [
+        parsed.get(i, ("WARN", NO_VERDICT_REASON))
+        for i in range(1, num_commands + 1)
+    ]
 
 
 def print_usage(config: dict[str, Any]) -> None:

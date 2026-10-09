@@ -179,6 +179,8 @@ Each command is tagged by the safety review:
 | **MISS** (magenta) | Safe but doesn't precisely answer the question |
 | **FAIL** (red) | Dangerous, incorrect, or insecure — execution blocked |
 
+Verdicts are matched to commands by the number the reviewer gives each line, not by line order. A command the review returns no verdict for is treated as **WARN**; if the reviewer gives one command several verdicts, the most severe one counts.
+
 ### Ask
 
 Pipe text to `ask` for general-purpose Q&A:
