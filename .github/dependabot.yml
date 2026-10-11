@@ -16,6 +16,9 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    # pydantic pins pydantic-core exactly; bumping the core alone breaks the install.
+    ignore:
+      - dependency-name: pydantic-core
     groups:
       dev:
         patterns: ['*']
