@@ -1,9 +1,18 @@
 nlsh (1.3ppa1) noble; urgency=low
 
   * Renamed package from osh to nlsh: "osh" clashed with an unrelated
-    PyPI package (Jack Orenstein's Object SHell). No functional changes.
+    PyPI package (Jack Orenstein's Object SHell). The command is now nlsh.
+  * Safety gate: QA verdicts are matched to commands by number; a command
+    without a verdict counts as WARN instead of running ungated.
+  * Every command is confirmed before it runs while safety is on; only
+    PASS defaults to yes, and end of input means no. The safety setting
+    is honoured and -a forces the prompt.
+  * LLM output is stripped of ANSI sequences and hidden characters before
+    display; commands containing hidden characters are rejected.
+  * install.sh removes legacy osh installs only if they contain osh.py
+    and only after asking.
 
- -- Raul Kivi <raul.kivi@proton.me>  Fri, 25 Sep 2026 00:00:00 +0000
+ -- Raul Kivi <raul.kivi@proton.me>  Mon, 12 Oct 2026 00:00:00 +0000
 
 osh (1.2ppa1) noble; urgency=low
 
