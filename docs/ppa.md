@@ -15,7 +15,7 @@ Describe what you want in plain English and get 3 ranked command alternatives wi
 Key features:
 - 3 command alternatives per query (shell variants plus one-liners in awk, perl, python3, etc.), each fully explained
 - Interactive shell mode (REPL) with a `?<question>` shortcut for direct LLM Q&A
-- Built-in QA safety review: flags dangerous or incorrect commands (PASS / WARN / MISS / FAIL)
+- Advisory QA review: a second LLM call flags dangerous or incorrect commands (PASS / WARN / MISS / FAIL); read the command before you confirm it
 - Checks command availability before suggesting tools not installed on your system
 - Detects available scripting languages (bash, awk, python, perl, ruby, node, …)
 - Copy commands to clipboard or execute directly

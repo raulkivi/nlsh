@@ -172,7 +172,7 @@ Select command [1/2/3] [c]opy or [n]o ==>
 
 ### QA Verdicts
 
-Each command is tagged by the safety review:
+Each command is tagged by the advisory QA review (a second LLM call; read the command before you confirm it):
 
 | Verdict | Meaning |
 |---------|---------|
@@ -246,7 +246,7 @@ nlsh --init
 | `temperature` | Randomness (0.0–2.0) | `0.3` |
 | `max_tokens` | Max response tokens (increase for thinking models) | `2400` |
 | `safety` | Ask before executing every command. When `false`, only PASS commands run without asking; anything else still asks (see [Confirmation Before Executing](#confirmation-before-executing)) | `true` |
-| `qa_review` | Enable second-pass safety review | `true` |
+| `qa_review` | Enable the advisory second-pass QA review | `true` |
 | `suggested_command_color` | Terminal color for displayed commands | `blue` |
 | `python_venv` | `null`, `"pyenv:name"`, or `"venv:/path"` | `null` |
 | `ollama_endpoint` | Local Ollama API URL | `http://localhost:11434` |
@@ -355,7 +355,7 @@ User query
   → Collect unique commands, skipping duplicates/parse failures, until
     3 have been gathered
   → Check command availability (shutil.which + shell builtins)
-  → QA safety review (single LLM call evaluating all collected commands)
+  → Advisory QA review (single LLM call grading all collected commands; it can miss things)
   → Display options with verdicts
   → User selects → Confirm (per verdict and `safety`) → Execute
 ```
@@ -368,7 +368,7 @@ User query
 | `ask.py` | Pipe-based general Q&A companion |
 | `install.sh` | Interactive installer with venv and model selection |
 | `tests/` | pytest suite covering config, parsing, safety guards, and interactive flows |
-| `evals/` | Opt-in script comparing QA safety-verdict accuracy across local Ollama models |
+| `evals/` | Opt-in script comparing advisory QA verdict accuracy across local Ollama models |
 
 ### Thinking Model Handling
 

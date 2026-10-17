@@ -32,7 +32,7 @@ Description: AI-powered command assistant using local LLMs
  Features:
   - 3 command alternatives per query, each fully explained
   - Interactive shell mode (REPL) with a direct '?' Q&A shortcut
-  - Built-in QA safety review (PASS / WARN / MISS / FAIL verdicts)
+  - Advisory QA review flags risky commands (PASS / WARN / MISS / FAIL verdicts)
   - Checks command availability before suggesting tools
   - Detects available scripting languages (bash, awk, python, perl, …)
   - Copy commands to clipboard or execute directly
