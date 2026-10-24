@@ -38,4 +38,4 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: raulkivi/unicode-smuggling-guard@5b1ddb1fa7a53872832315f8ead14d4aeeb8af9f # v1.2.0
+      - uses: raulkivi/unicode-smuggling-guard@686c109071ab1d304b65fd465a135cac1dc87058 # v1.3.0
