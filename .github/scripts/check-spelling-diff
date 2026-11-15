@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# Spell-check only the added lines of a unified diff read from stdin.
+# Exit: 0 clean, 1 findings, 2 error.
+set -euo pipefail
+
+config=./.codespellrc
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --config) [[ $# -ge 2 ]] || { echo "--config needs a value" >&2; exit 2; }; config=$2; shift 2 ;;
+    *) echo "usage: check-spelling-diff [--config FILE]" >&2; exit 2 ;;
+  esac
+done
+
+if [[ ! -f "$config" ]]; then
+  echo "config not found: $config" >&2
+  exit 2
+fi
+config=$(readlink -f "$config")
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# Each added line goes to its real line number (other lines blank) so that
+# codespell reports positions that match the commit. Hunk counters stop a
+# content line like "+++ x" from being mistaken for a file header.
+awk -v out="$tmp" '
+function shq(s) { gsub(/\047/, "\047\\\047\047", s); return "\047" s "\047" }
+function flush(   i, dir) {
+  if (file != "" && maxn > 0) {
+    dir = file; sub(/\/[^\/]*$/, "", dir)
+    if (dir != file) system("mkdir -p " shq(out "/" dir))
+    for (i = 1; i <= maxn; i++) print (i in text ? text[i] : "") > (out "/" file)
+    close(out "/" file)
+  }
+  delete text; maxn = 0
+}
+{
+  if (old > 0 || new > 0) {
+    c = substr($0, 1, 1)
+    if (c == "+") { text[ln] = substr($0, 2); if (ln > maxn) maxn = ln; ln++; new-- }
+    else if (c == "-") { old-- }
+    else if (c == "\\") { }
+    else { ln++; old--; new-- }
+    next
+  }
+  if (substr($0, 1, 4) == "+++ ") {
+    flush()
+    p = substr($0, 5)
+    sub(/\t.*$/, "", p)
+    gsub(/^"|"$/, "", p)
+    if (p == "/dev/null" || p ~ /(^|\/)\.\.(\/|$)/) { file = "" } else { sub(/^b\//, "", p); file = p }
+    next
+  }
+  if ($0 ~ /^@@ /) {
+    if (match($0, /\+[0-9]+(,[0-9]+)?/)) {
+      n = substr($0, RSTART + 1, RLENGTH - 1)
+      split(n, a, ","); ln = a[1] + 0; new = (a[2] == "" ? 1 : a[2] + 0)
+    }
+    match($0, /-[0-9]+(,[0-9]+)?/)
+    n = substr($0, RSTART + 1, RLENGTH - 1)
+    split(n, b, ","); old = (b[2] == "" ? 1 : b[2] + 0)
+    next
+  }
+}
+END { flush() }
+' 
+
+rc=0
+(cd "$tmp" && codespell --config "$config" --check-hidden .) || rc=$?
+case $rc in
+  0) exit 0 ;;
+  65) exit 1 ;;
+  *) exit 2 ;;
+esac

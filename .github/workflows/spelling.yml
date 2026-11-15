@@ -1,0 +1,41 @@
+# Checks commit messages and added lines for US English spelling and common
+# typos with codespell. Rules: .codespellrc. Existing text is not checked.
+
+name: Spelling
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  spelling:
+    name: Spelling
+    # Dependabot commit messages quote upstream release notes.
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.13'
+      - run: python -m pip install --no-deps --require-hashes -r .github/spelling-requirements.txt
+      - name: Check commit messages
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git log --no-merges --format=%B "$BASE..$HEAD" \
+            | sed -E '/^(co-authored-by|signed-off-by):/Id' \
+            | codespell --config .codespellrc -
+      - name: Check added lines
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git -c core.quotepath=false diff -U0 --no-color --no-ext-diff --diff-filter=ACMR "$BASE...$HEAD" \
+            | .github/scripts/check-spelling-diff --config .codespellrc
