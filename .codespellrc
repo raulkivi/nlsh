@@ -1,0 +1,7 @@
+# Spelling: US English plus common typos. The Spelling workflow checks commit
+# messages and added lines in pull requests; existing text is not checked.
+# For a proper name in British spelling, add `codespell:ignore <word>` on the line.
+[codespell]
+builtin = clear,rare,en-GB_to_en-US
+uri-ignore-words-list = *
+skip = *.lock,package-lock.json,*.svg,*.min.js,*.map
