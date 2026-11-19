@@ -1,5 +1,7 @@
 # NLSH
 
+**Last changed:** 2026-11-19 · **Source:** https://github.com/raulkivi/nlsh
+
 [![CI](https://github.com/raulkivi/nlsh/actions/workflows/ci.yml/badge.svg)](https://github.com/raulkivi/nlsh/actions/workflows/ci.yml) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/raulkivi/nlsh/badge)](https://scorecard.dev/viewer/?uri=github.com/raulkivi/nlsh) ![Version](https://img.shields.io/badge/version-1.3-blue) ![License](https://img.shields.io/badge/license-MIT-green)
 
 Learn and use Linux through natural language — powered by local LLMs via Ollama or a local llama.cpp `llama-server`.
@@ -29,7 +31,7 @@ Describe what you want in plain English and get 3 executable command options, ea
 ## Requirements
 
 - Python 3.11+
-- [Ollama](https://ollama.ai) installed and running locally, or a local [llama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server`
+- [Ollama](https://ollama.com) installed and running locally, or a local [llama.cpp](https://github.com/ggml-org/llama.cpp) `llama-server`
 
 ## Quick Start
 
@@ -414,14 +416,15 @@ Old logs auto-deleted after `log_retention_days` (default: 30).
 ```bash
 rm -rf ~/.local/nlsh ~/.config/nlsh ~/.local/state/nlsh
 rm -f ~/.local/bin/nlsh ~/.local/bin/ask ~/.local/bin/computer
-pip3 uninstall ollama termcolor pyperclip
 ```
+
+The installer put `ollama`, `termcolor` and `pyperclip` into the Python environment you chose (pyenv, venv or system). Remove them there with `python -m pip uninstall ollama termcolor pyperclip` only if nothing else uses them.
 
 ## Ollama Setup
 
 ```bash
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3
+curl -fsSL https://ollama.com/install.sh | sh
+ollama pull gpt-oss   # the default model; any model works if you set it as "model" in the config
 ```
 
 ## Contributing

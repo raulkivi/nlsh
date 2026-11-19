@@ -9,5 +9,5 @@
 
 ## Checklist
 - [ ] Tests written first and passing (`python -m pytest -q`)
-- [ ] README updated if behaviour or config changed
+- [ ] README updated if behavior or config changed
 - [ ] No secrets, hidden Unicode, or unrelated changes included
