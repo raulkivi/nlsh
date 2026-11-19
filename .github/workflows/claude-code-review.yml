@@ -10,6 +10,10 @@ on:
     #   - "src/**/*.js"
     #   - "src/**/*.jsx"
 
+# Read-only default; the job below grants only what it needs.
+permissions:
+  contents: read
+
 jobs:
   claude-review:
     # Dependabot and fork PRs get no repository secrets, so the token would be empty.
