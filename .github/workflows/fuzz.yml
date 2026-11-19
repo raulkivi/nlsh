@@ -1,0 +1,29 @@
+# Runs the Atheris harness in fuzz/ for a bounded time. Hypothesis property
+# tests (tests/test_fuzz_properties.py) run in the CI workflow.
+
+name: Fuzz
+
+on:
+  pull_request:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz parsers (Atheris)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - run: python -m pip install --require-hashes -r requirements-dev.txt
+      - run: python -m pip install --no-deps --require-hashes -r .github/fuzz-requirements.txt
+      - run: python fuzz/fuzz_parsers.py -max_total_time=120
