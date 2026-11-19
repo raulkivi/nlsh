@@ -1,5 +1,7 @@
 # Personal Package Archive
 
+**Last changed:** 2026-11-19 · **Source:** https://github.com/raulkivi/nlsh
+
 **URL:** https://ppa.launchpadcontent.net/raulkivi/nlsh
 
 ## Display name
@@ -8,7 +10,7 @@ NLSH — AI-powered command assistant
 
 ## Description
 
-nlsh is an AI-powered command-line assistant that translates natural language into executable Linux/shell commands using local LLMs via Ollama.
+nlsh is an AI-powered command-line assistant that translates natural language into executable Linux/shell commands using local LLMs via Ollama or a llama.cpp `llama-server`.
 
 Describe what you want in plain English and get 3 ranked command alternatives with detailed, line-by-line explanations — no cloud required, no man-page diving.
 

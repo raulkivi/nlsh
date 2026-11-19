@@ -23,7 +23,7 @@ Depends: ${python3:Depends},
 Recommends: ollama
 Description: AI-powered command assistant using local LLMs
  nlsh translates natural language descriptions into executable
- Linux/shell commands using local LLMs via Ollama.
+ Linux/shell commands using local LLMs via Ollama or llama.cpp.
  .
  Describe what you want in plain English and get 3 ranked command
  alternatives with detailed, line-by-line explanations — no cloud
@@ -40,4 +40,5 @@ Description: AI-powered command assistant using local LLMs
   - XDG-compliant paths and daily logging
   - Supports thinking models (deepseek-r1, etc.)
  .
- Note: requires Ollama (https://ollama.com) installed separately.
+ Note: requires Ollama (https://ollama.com) or a llama.cpp llama-server,
+ installed separately.
